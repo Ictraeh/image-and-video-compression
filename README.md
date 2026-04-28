@@ -33,6 +33,6 @@ npx vercel link   # once
 npx vercel --prod
 ```
 
-**Important limits:** Vercel Functions cap **request and response bodies at about 4.5 MB** per invocation (see [Vercel function limits](https://vercel.com/docs/functions/limitations) and [how to work around large uploads](https://vercel.com/kb/guide/how-to-bypass-vercel-body-size-limit-serverless-functions)). This app is built for larger files on a normal Node host; on Vercel, only very small uploads/downloads will succeed unless you refactor to direct-to-object-storage uploads (for example Vercel Blob).
+**Important limits:** Vercel Functions cap **request and response bodies at about 4.5 MB** per invocation; that ceiling is **not** something you can raise in `vercel.json` or the function `config` export ([limits](https://vercel.com/docs/functions/limitations), [large payloads KB](https://vercel.com/kb/guide/how-to-bypass-vercel-body-size-limit-serverless-functions)). This repo sets **`express.json({ limit: '10mb' })`** and **Multer `fileSize` to 10 MB on Vercel** so app-level parsing matches common guidance; **multipart uploads still cannot exceed the platform ~4.5 MB** total request size. For larger files, use a normal Node host or direct-to-storage uploads (e.g. Vercel Blob).
 
 On Vercel, uploads and outputs use **`/tmp`**; FFmpeg/ffprobe use the **`ffmpeg-static`** / **`ffprobe-static`** binaries bundled in `package.json`.

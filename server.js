@@ -140,7 +140,14 @@ const storage = multer.diskStorage({
   },
 });
 
-const MAX_FILE_BYTES = 500 * 1024 * 1024;
+/** Per-file cap; on Vercel align with typical 10 MB app limits (see README for platform 4.5 MB cap). */
+const MAX_FILE_BYTES = (() => {
+  if (process.env.MAX_FILE_BYTES) {
+    const n = parseInt(process.env.MAX_FILE_BYTES, 10);
+    return Number.isFinite(n) && n > 0 ? n : 10 * 1024 * 1024;
+  }
+  return IS_VERCEL ? 10 * 1024 * 1024 : 500 * 1024 * 1024;
+})();
 const MAX_IMAGE_FILES = 50;
 const MAX_VIDEO_FILES = 20;
 
@@ -315,7 +322,7 @@ app.use((req, res, next) => {
   storageReady.then(() => next()).catch(next);
 });
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 app.use("/output", express.static(OUTPUT));
 app.use(express.static(path.join(ROOT, "public")));
 
@@ -495,12 +502,20 @@ app.post(
   }
 );
 
+const VERCEL_FUNCTION_PAYLOAD_BYTES = Math.floor(4.5 * 1024 * 1024);
+
 app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     ffmpeg: resolvedFfmpegPath,
     ffprobe: resolvedFfprobePath,
     videoCompression: Boolean(resolvedFfmpegPath),
+    maxFileBytesPerPart: MAX_FILE_BYTES,
+    expressJsonLimit: "10mb",
+    vercelFunctionPayloadBytesApprox: IS_VERCEL ? VERCEL_FUNCTION_PAYLOAD_BYTES : null,
+    vercelPayloadNote: IS_VERCEL
+      ? "Vercel caps each function request/response body near 4.5 MB (not configurable in vercel.json). Multer/JSON allow 10 MB so small JSON bodies parse; multipart uploads cannot exceed the platform cap."
+      : null,
   });
 });
 
