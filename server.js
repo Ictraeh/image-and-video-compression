@@ -32,6 +32,12 @@ function resolveFfmpegBinary() {
   if (process.env.FFMPEG_PATH && fileExistsSync(process.env.FFMPEG_PATH)) {
     return process.env.FFMPEG_PATH;
   }
+  try {
+    const fromPkg = require("ffmpeg-static");
+    if (fromPkg && fileExistsSync(fromPkg)) return fromPkg;
+  } catch {
+    /* optional bundled binary (e.g. Vercel Linux) */
+  }
   const candidates = [
     "/opt/homebrew/bin/ffmpeg",
     "/usr/local/bin/ffmpeg",
@@ -47,6 +53,13 @@ function resolveFfmpegBinary() {
 function resolveFfprobeBinary(ffmpegPath) {
   if (process.env.FFPROBE_PATH && fileExistsSync(process.env.FFPROBE_PATH)) {
     return process.env.FFPROBE_PATH;
+  }
+  try {
+    const mod = require("ffprobe-static");
+    const p = typeof mod === "string" ? mod : mod?.path;
+    if (p && fileExistsSync(p)) return p;
+  } catch {
+    /* optional bundled binary */
   }
   const candidates = [
     "/opt/homebrew/bin/ffprobe",
@@ -90,8 +103,10 @@ function configureFfmpeg() {
 configureFfmpeg();
 
 const ROOT = __dirname;
-const UPLOADS = path.join(ROOT, "uploads");
-const OUTPUT = path.join(ROOT, "output");
+const IS_VERCEL = Boolean(process.env.VERCEL);
+const WORK_BASE = IS_VERCEL ? path.join("/tmp", "image-video-compression") : ROOT;
+const UPLOADS = path.join(WORK_BASE, "uploads");
+const OUTPUT = path.join(WORK_BASE, "output");
 
 const IMAGE_EXT = new Set([
   ".jpg",
@@ -114,6 +129,8 @@ async function ensureDirs() {
   await fs.mkdir(UPLOADS, { recursive: true });
   await fs.mkdir(OUTPUT, { recursive: true });
 }
+
+const storageReady = ensureDirs();
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOADS),
@@ -294,6 +311,9 @@ function runFfmpeg(inputPath, outPath, opts) {
 }
 
 const app = express();
+app.use((req, res, next) => {
+  storageReady.then(() => next()).catch(next);
+});
 app.use(cors());
 app.use(express.json());
 app.use("/output", express.static(OUTPUT));
@@ -493,9 +513,18 @@ app.use((err, _req, res, _next) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
-ensureDirs().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server http://localhost:${PORT}`);
-  });
-});
+module.exports = app;
+
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  storageReady
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`Server http://localhost:${PORT}`);
+      });
+    })
+    .catch((err) => {
+      console.error(err);
+      process.exit(1);
+    });
+}

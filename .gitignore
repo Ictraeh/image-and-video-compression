@@ -1,5 +1,7 @@
 node_modules/
 uploads/
 output/
+.vercel/
 .DS_Store
 *.log
+.vercel
