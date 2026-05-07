@@ -104,6 +104,11 @@ configureFfmpeg();
 
 const ROOT = __dirname;
 const IS_VERCEL = Boolean(process.env.VERCEL);
+/**
+ * Vercel serverless rejects the whole HTTP request around ~4.5 MB (platform error
+ * FUNCTION_PAYLOAD_TOO_LARGE). Multipart boundaries add overhead, so cap below that.
+ */
+const VERCEL_PER_REQUEST_SAFE_BYTES = 4 * 1024 * 1024;
 const WORK_BASE = IS_VERCEL ? path.join("/tmp", "image-video-compression") : ROOT;
 const UPLOADS = path.join(WORK_BASE, "uploads");
 const OUTPUT = path.join(WORK_BASE, "output");
@@ -120,10 +125,14 @@ const IMAGE_EXT = new Set([
 ]);
 const VIDEO_EXT = new Set([".mp4", ".avi", ".mov", ".mkv", ".wmv"]);
 
-const QUALITY = { low: 50, medium: 75, high: 85 };
+/** Lossy image quality (Sharp): tuned for smaller files; medium = strong size/quality balance. */
+const QUALITY = { low: 42, medium: 68, high: 82 };
 
-const VP9_CRF = { low: 40, medium: 32, high: 24 };
-const X264_CRF = { low: 28, medium: 23, high: 18 };
+/** VP9 CRF: higher = smaller file; medium sits in the “visually fine on the web” range. */
+const VP9_CRF = { low: 44, medium: 36, high: 30 };
+
+/** H.264 CRF: higher = smaller; slow preset improves compression vs same CRF. */
+const X264_CRF = { low: 30, medium: 24, high: 19 };
 
 async function ensureDirs() {
   await fs.mkdir(UPLOADS, { recursive: true });
@@ -140,13 +149,24 @@ const storage = multer.diskStorage({
   },
 });
 
-/** Per-file cap; on Vercel align with typical 10 MB app limits (see README for platform 4.5 MB cap). */
+/**
+ * Per-file upload cap (multer). Override with MAX_FILE_BYTES (bytes).
+ * On Vercel, values are clamped so a single-file upload can fit under the
+ * platform request-body limit; multi-file batches must stay smaller in total.
+ */
 const MAX_FILE_BYTES = (() => {
+  let n;
   if (process.env.MAX_FILE_BYTES) {
-    const n = parseInt(process.env.MAX_FILE_BYTES, 10);
-    return Number.isFinite(n) && n > 0 ? n : 10 * 1024 * 1024;
+    const parsed = parseInt(process.env.MAX_FILE_BYTES, 10);
+    if (Number.isFinite(parsed) && parsed > 0) n = parsed;
   }
-  return IS_VERCEL ? 10 * 1024 * 1024 : 500 * 1024 * 1024;
+  if (n === undefined) {
+    n = IS_VERCEL ? 3 * 1024 * 1024 : 8 * 1024 * 1024 * 1024;
+  }
+  if (IS_VERCEL) {
+    n = Math.min(n, VERCEL_PER_REQUEST_SAFE_BYTES);
+  }
+  return n;
 })();
 const MAX_IMAGE_FILES = 50;
 const MAX_VIDEO_FILES = 20;
@@ -222,11 +242,18 @@ async function processImage(filePath, outDir, options) {
       await pipeline.webp(
         lossless
           ? { lossless: true, effort: 6 }
-          : { quality: q, effort: 6, smartSubsample: true }
+          : { quality: q, effort: 6, smartSubsample: true, alphaQuality: 100 }
       ).toFile(outPath);
       break;
     case "jpeg":
-      await pipeline.jpeg({ quality: q, mozjpeg: true }).toFile(outPath);
+      await pipeline
+        .jpeg({
+          quality: q,
+          mozjpeg: true,
+          trellisQuantisation: true,
+          overshootDeringing: true,
+        })
+        .toFile(outPath);
       break;
     case "png":
       await pipeline.png({ compressionLevel: 9, quality: q }).toFile(outPath);
@@ -235,7 +262,7 @@ async function processImage(filePath, outDir, options) {
       await pipeline.gif({ effort: 10 }).toFile(outPath);
       break;
     case "avif":
-      await pipeline.avif({ quality: q, effort: 4 }).toFile(outPath);
+      await pipeline.avif({ quality: q, effort: 6 }).toFile(outPath);
       break;
     default:
       await pipeline.webp({ quality: q, effort: 6 }).toFile(
@@ -255,6 +282,8 @@ function runFfmpeg(inputPath, outPath, opts) {
   } = opts;
   const crfVp9 = VP9_CRF[qualityKey] ?? VP9_CRF.medium;
   const crfH264 = X264_CRF[qualityKey] ?? X264_CRF.medium;
+  const x264Preset =
+    qualityKey === "high" ? "slower" : qualityKey === "low" ? "medium" : "slow";
 
   return new Promise((resolve, reject) => {
     let cmd = ffmpeg(inputPath);
@@ -266,7 +295,7 @@ function runFfmpeg(inputPath, outPath, opts) {
     cmd = cmd.outputOptions(["-map", "0:v:0", "-map", "0:a?"]);
 
     if (mode === "webm") {
-      cmd = cmd.videoCodec("libvpx-vp9").audioCodec("libopus").audioBitrate("128k");
+      cmd = cmd.videoCodec("libvpx-vp9").audioCodec("libopus").audioBitrate("96k");
       if (videoBitrate) {
         cmd = cmd.outputOptions([
           "-b:v",
@@ -296,12 +325,12 @@ function runFfmpeg(inputPath, outPath, opts) {
       cmd = cmd
         .videoCodec("libx264")
         .audioCodec("aac")
-        .audioBitrate("128k")
+        .audioBitrate("112k")
         .outputOptions([
           "-crf",
           String(crfH264),
           "-preset",
-          "medium",
+          x264Preset,
           "-movflags",
           "+faststart",
         ]);
@@ -325,6 +354,23 @@ app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 app.use("/output", express.static(OUTPUT));
 app.use(express.static(path.join(ROOT, "public")));
+
+app.get("/api/config", (_req, res) => {
+  /** Approximate safe total body size (all files + multipart overhead) on Vercel. */
+  const maxRequestBytesApprox = IS_VERCEL
+    ? Math.floor(4.2 * 1024 * 1024)
+    : null;
+  res.json({
+    maxFileBytes: MAX_FILE_BYTES,
+    maxFileMb: Math.ceil(MAX_FILE_BYTES / (1024 * 1024)),
+    maxFileGb: MAX_FILE_BYTES / (1024 * 1024 * 1024),
+    serverless: IS_VERCEL,
+    maxRequestBytesApprox,
+    hostRequestBodyNote: IS_VERCEL
+      ? "This version lives on Vercel, which only allows tiny uploads (about one small photo at a time). For big files, run the app on your own computer with npm start — then you can go much larger."
+      : null,
+  });
+});
 
 app.post(
   "/api/compress/images",

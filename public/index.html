@@ -3,262 +3,328 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Compress — images & video for the web</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
-    />
+    <title>Shrink — smaller photos &amp; videos</title>
     <link rel="stylesheet" href="/css/style.css" />
   </head>
   <body>
-    <div class="bg-gradient" aria-hidden="true"></div>
-    <header class="site-header">
-      <div class="brand">
-        <span class="logo" aria-hidden="true">◇</span>
-        <span class="name">Compress</span>
-      </div>
-      <nav class="nav">
-        <a href="#app">Tool</a>
-        <a href="#help">Help</a>
-      </nav>
-    </header>
-
-    <main>
-      <section class="hero">
-        <h1>Smaller files, faster pages</h1>
-        <p class="lede">
-          Convert and compress images (WebP-first) and video (WebM VP9) in the
-          browser—batch-friendly, with clear quality presets.
-        </p>
-      </section>
-
-      <section id="app" class="panel">
-        <div class="tabs" role="tablist" aria-label="Compression type">
-          <button
-            type="button"
-            class="tab is-active"
-            role="tab"
-            aria-selected="true"
-            data-mode="image"
-            id="tab-image"
-          >
-            Images
-          </button>
-          <button
-            type="button"
-            class="tab"
-            role="tab"
-            aria-selected="false"
-            data-mode="video"
-            id="tab-video"
-          >
-            Video
-          </button>
+    <div class="page-bg">
+      <header class="site-header">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="name">Shrink</span>
         </div>
+        <nav class="nav" aria-label="Page">
+          <a href="#app">Start</a>
+          <a href="#help">Tips</a>
+        </nav>
+      </header>
 
-        <div
-          id="file-queue-panel"
-          class="file-queue-panel hidden"
-          aria-live="polite"
-        >
-          <div class="file-queue-head">
-            <span class="file-queue-title">Files ready to upload</span>
-            <span class="file-queue-badge" id="file-queue-badge"></span>
-          </div>
-          <ul id="file-queue-list" class="file-queue-list"></ul>
-          <p class="file-queue-hint" id="file-queue-hint"></p>
-        </div>
+      <main>
+        <section class="hero">
+          <p class="hero-eyebrow">Free &amp; simple</p>
+          <h1>Make your files smaller.</h1>
+          <p class="lede">
+            Big files slow everything down. Add your pictures or a video, tap
+            one button, and download a lighter copy. No account. No fuss.
+          </p>
+        </section>
 
-        <div
-          id="status-panel"
-          class="status-panel hidden"
-          role="status"
-          aria-live="polite"
-          aria-busy="false"
-        >
-          <div class="status-header">
-            <span class="status-phase" id="status-phase">Uploading</span>
-            <span class="status-pct" id="status-pct">0%</span>
-          </div>
-          <div class="status-bar-track">
-            <div class="status-bar-fill" id="status-bar-fill"></div>
-          </div>
-          <p class="status-detail" id="status-detail"></p>
-        </div>
+        <section id="app" class="panel" aria-labelledby="app-heading">
+          <h2 id="app-heading" class="visually-hidden">Shrink your files</h2>
+          <p class="panel-intro">First, choose what you are shrinking today.</p>
 
-        <form id="form-image" class="mode-form" data-mode="image">
+          <div class="segmented" role="tablist" aria-label="Photos or video">
+            <button
+              type="button"
+              class="tab is-active"
+              role="tab"
+              aria-selected="true"
+              data-mode="image"
+              id="tab-image"
+            >
+              Photos
+            </button>
+            <button
+              type="button"
+              class="tab"
+              role="tab"
+              aria-selected="false"
+              data-mode="video"
+              id="tab-video"
+            >
+              Video
+            </button>
+          </div>
+
           <div
-            class="dropzone"
-            id="drop-image"
-            tabindex="0"
-            role="button"
-            aria-label="Drop images or click to browse"
+            id="deploy-limit-banner"
+            class="deploy-limit-banner hidden"
+            role="status"
           >
-            <input
-              type="file"
-              id="file-image"
-              name="files"
-              accept=".jpg,.jpeg,.png,.gif,.bmp,.tif,.tiff,.svg"
-              multiple
-              hidden
-            />
-            <p class="drop-title">Drop images here</p>
-            <p class="drop-hint">JPEG, PNG, GIF, BMP, TIFF, SVG — batch OK</p>
+            <strong class="deploy-limit-title">Small note about this site</strong>
+            <p class="deploy-limit-note" data-deploy-note></p>
           </div>
 
-          <div class="controls grid-2">
-            <label class="field">
-              <span>Output format</span>
-              <select name="format" id="image-format">
-                <option value="webp" selected>WebP (recommended)</option>
-                <option value="jpeg">JPEG</option>
-                <option value="png">PNG</option>
-                <option value="gif">GIF</option>
-                <option value="avif">AVIF</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>Quality</span>
-              <select name="quality" id="image-quality">
-                <option value="low">Low (smaller)</option>
-                <option value="medium" selected>Medium</option>
-                <option value="high">High</option>
-              </select>
-            </label>
-          </div>
-          <label class="checkbox field-inline" id="webp-lossless-wrap">
-            <input type="checkbox" name="lossless" id="image-lossless" />
-            <span>Lossless WebP (only applies to WebP)</span>
-          </label>
-
-          <button type="submit" class="btn primary" id="btn-image">
-            Compress images
-          </button>
-        </form>
-
-        <form id="form-video" class="mode-form hidden" data-mode="video">
           <div
-            class="dropzone"
-            id="drop-video"
-            tabindex="0"
-            role="button"
-            aria-label="Drop videos or click to browse"
+            id="file-queue-panel"
+            class="file-queue-panel hidden"
+            aria-live="polite"
           >
-            <input
-              type="file"
-              id="file-video"
-              name="files"
-              accept=".mp4,.avi,.mov,.mkv,.wmv"
-              multiple
-              hidden
-            />
-            <p class="drop-title">Drop videos here</p>
-            <p class="drop-hint">MP4, AVI, MOV, MKV, WMV — batch OK</p>
+            <div class="file-queue-head">
+              <span class="file-queue-title">You picked</span>
+              <span class="file-queue-badge" id="file-queue-badge"></span>
+            </div>
+            <ul id="file-queue-list" class="file-queue-list"></ul>
+            <p class="file-queue-hint" id="file-queue-hint"></p>
           </div>
 
-          <div class="controls grid-2">
-            <label class="field">
-              <span>Output format</span>
-              <select name="format" id="video-format">
-                <option value="webm" selected>WebM (VP9 + Opus)</option>
-                <option value="mp4">MP4 (H.264 + AAC)</option>
-                <option value="ogg">OGG (Theora + Vorbis)</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>Quality</span>
-              <select name="quality" id="video-quality">
-                <option value="low">Low (smaller)</option>
-                <option value="medium" selected>Medium</option>
-                <option value="high">High</option>
-              </select>
-            </label>
+          <div
+            id="status-panel"
+            class="status-panel hidden"
+            role="status"
+            aria-live="polite"
+            aria-busy="false"
+          >
+            <div class="status-header">
+              <span class="status-phase" id="status-phase">Working</span>
+              <span class="status-pct" id="status-pct">0%</span>
+            </div>
+            <div class="status-bar-track">
+              <div class="status-bar-fill" id="status-bar-fill"></div>
+            </div>
+            <p class="status-detail" id="status-detail"></p>
           </div>
-          <div class="controls grid-2">
-            <label class="field">
-              <span>Max width (px, optional)</span>
+
+          <form id="form-image" class="mode-form" data-mode="image">
+            <div
+              class="dropzone"
+              id="drop-image"
+              tabindex="0"
+              role="button"
+              aria-label="Add photos from your device or drop them here"
+            >
               <input
-                type="number"
-                name="maxWidth"
-                id="video-max-width"
-                min="160"
-                max="7680"
-                placeholder="e.g. 1280"
+                type="file"
+                id="file-image"
+                name="files"
+                accept=".jpg,.jpeg,.png,.gif,.bmp,.tif,.tiff,.svg"
+                multiple
+                hidden
               />
+              <svg
+                class="drop-icon"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="1.5"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+                />
+              </svg>
+              <p class="drop-title">Tap here or drop photos</p>
+              <p class="drop-hint">
+                JPG, PNG, GIF, and more. You can add many at once.
+              </p>
+            </div>
+
+            <div class="controls grid-2">
+              <label class="field">
+                <span>Save as</span>
+                <select name="format" id="image-format">
+                  <option value="webp" selected>WebP — best for websites</option>
+                  <option value="jpeg">JPEG</option>
+                  <option value="png">PNG</option>
+                  <option value="gif">GIF</option>
+                  <option value="avif">AVIF — extra small (newer browsers)</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>How nice should it look?</span>
+                <select name="quality" id="image-quality">
+                  <option value="low">Smallest file</option>
+                  <option value="medium" selected>
+                    Balanced — we recommend this
+                  </option>
+                  <option value="high">Extra sharp (bigger file)</option>
+                </select>
+              </label>
+            </div>
+            <label class="checkbox field-inline" id="webp-lossless-wrap">
+              <input type="checkbox" name="lossless" id="image-lossless" />
+              <span
+                >Keep every pixel perfect (only when you pick WebP above).</span
+              >
             </label>
-            <label class="field">
-              <span>Video bitrate (optional, e.g. 2M)</span>
+
+            <button type="submit" class="btn primary" id="btn-image">
+              Shrink my photos
+            </button>
+          </form>
+
+          <form id="form-video" class="mode-form hidden" data-mode="video">
+            <div
+              class="dropzone"
+              id="drop-video"
+              tabindex="0"
+              role="button"
+              aria-label="Add a video from your device or drop it here"
+            >
               <input
-                type="text"
-                name="bitrate"
-                id="video-bitrate"
-                placeholder="VP9: overrides CRF if set"
+                type="file"
+                id="file-video"
+                name="files"
+                accept=".mp4,.avi,.mov,.mkv,.wmv"
+                multiple
+                hidden
               />
-            </label>
+              <svg
+                class="drop-icon"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="1.5"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+                />
+              </svg>
+              <p class="drop-title">Tap here or drop a video</p>
+              <p class="drop-hint">MP4, MOV, and other common types.</p>
+            </div>
+
+            <div class="controls grid-2">
+              <label class="field">
+                <span>Save as</span>
+                <select name="format" id="video-format">
+                  <option value="webm" selected>WebM — great for the web</option>
+                  <option value="mp4">MP4 — plays almost everywhere</option>
+                  <option value="ogg">OGG</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>How nice should it look?</span>
+                <select name="quality" id="video-quality">
+                  <option value="low">Smallest file</option>
+                  <option value="medium" selected>
+                    Balanced — we recommend this
+                  </option>
+                  <option value="high">Extra clear (bigger file)</option>
+                </select>
+              </label>
+            </div>
+            <div class="controls grid-2">
+              <label class="field">
+                <span>Max width (optional)</span>
+                <input
+                  type="number"
+                  name="maxWidth"
+                  id="video-max-width"
+                  min="160"
+                  max="7680"
+                  placeholder="e.g. 1280 pixels"
+                />
+              </label>
+              <label class="field">
+                <span>Video bitrate (optional)</span>
+                <input
+                  type="text"
+                  name="bitrate"
+                  id="video-bitrate"
+                  placeholder="e.g. 2M — advanced"
+                />
+              </label>
+            </div>
+
+            <button type="submit" class="btn primary" id="btn-video">
+              Shrink my video
+            </button>
+          </form>
+
+          <div id="results" class="results hidden">
+            <h2 class="results-title">Here you go</h2>
+            <p class="results-sub">Tap a name to save it to your device.</p>
+            <ul id="results-list" class="results-list"></ul>
           </div>
 
-          <button type="submit" class="btn primary" id="btn-video">
-            Compress videos
-          </button>
-        </form>
-
-        <div id="results" class="results hidden">
-          <h2 class="results-title">Ready to download</h2>
-          <ul id="results-list" class="results-list"></ul>
-        </div>
-
-        <div id="error-panel" class="error-panel hidden" role="alert">
-          <div class="error-panel-head">
-            <span class="error-code" id="error-code"></span>
-            <h3 class="error-title" id="error-title">Something went wrong</h3>
+          <div id="error-panel" class="error-panel hidden" role="alert">
+            <div class="error-panel-head">
+              <span class="error-code" id="error-code"></span>
+              <h3 class="error-title" id="error-title">That did not work</h3>
+            </div>
+            <p class="error-message" id="error-message"></p>
+            <pre class="error-details hidden" id="error-details"></pre>
           </div>
-          <p class="error-message" id="error-message"></p>
-          <pre class="error-details hidden" id="error-details"></pre>
-        </div>
-      </section>
+        </section>
 
-      <section id="help" class="help">
-        <h2>Help</h2>
-        <div class="help-grid">
-          <article>
-            <h3>Images</h3>
-            <p>
-              Default export is WebP, which usually gives the best size and
-              quality balance for the web. Use AVIF for even smaller files on
-              modern browsers. SVGs are rasterized when converting to pixel
-              formats.
-            </p>
-          </article>
-          <article>
-            <h3>Video</h3>
-            <p>
-              WebM uses VP9 and Opus. Video compression needs
-              <strong>FFmpeg</strong> on your Mac (e.g.
-              <code>brew install ffmpeg</code>), then restart the app. If the
-              app still cannot find it, set <code>FFMPEG_PATH</code> to your
-              <code>ffmpeg</code> binary (often
-              <code>/opt/homebrew/bin/ffmpeg</code>). Optional max width scales
-              video down; bitrate overrides quality-based encoding for WebM when
-              set.
-            </p>
-          </article>
-          <article>
-            <h3>Accounts</h3>
-            <p>
-              Sign-in and saved preferences are not in this build—they can be
-              added later with auth and a database.
-            </p>
-          </article>
-        </div>
-      </section>
-    </main>
+        <section id="help" class="help">
+          <h2>Tips</h2>
+          <p class="help-sub">
+            Three quick things people ask about. Still stuck? Read the short
+            note under each topic.
+          </p>
+          <div class="help-grid">
+            <article>
+              <h3>Photos</h3>
+              <p>
+                <strong>WebP</strong> is usually the sweet spot: small file, still
+                looks great on a screen. <strong>AVIF</strong> can be even
+                smaller on newer phones and browsers. Fancy vector
+                <strong>SVG</strong> files turn into regular pictures if you pick
+                JPEG or WebP.
+              </p>
+            </article>
+            <article>
+              <h3>Video</h3>
+              <p>
+                Shrinking video needs a helper app called
+                <strong>FFmpeg</strong> on the computer that runs this site. On a
+                Mac you can install it with
+                <code>brew install ffmpeg</code>, then start the site again. If
+                it still says it cannot find FFmpeg, point
+                <code>FFMPEG_PATH</code> to where it lives, often
+                <code>/opt/homebrew/bin/ffmpeg</code>.
+              </p>
+            </article>
+            <article>
+              <h3>Accounts</h3>
+              <p>
+                There is no sign-in here. Your files are processed and that is it.
+                If you ever want saved settings or history, that would be a
+                future add-on.
+              </p>
+            </article>
+          </div>
+        </section>
+      </main>
 
-    <footer class="site-footer">
-      <span>Local processing · runs on your Node server</span>
-    </footer>
+      <footer class="site-footer">
+        Your files are processed on this app’s server — not sent to some random
+        ad company.
+      </footer>
+    </div>
 
+    <style>
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+    </style>
     <script src="/js/app.js" type="module"></script>
   </body>
 </html>
